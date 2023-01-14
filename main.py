@@ -34,7 +34,7 @@ def main():
                                        response_data
                                        )
 
-        next_request_key = next_request_key + 1
+        next_request_key += 1
 
     db_conn.close()
 
