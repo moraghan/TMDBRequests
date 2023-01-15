@@ -1,6 +1,6 @@
 {% sql 'get_max_id_for_request_type', note='retrieve max request ket for request type' %}
 
-    SELECT MAX(request_id) FROM public.request WHERE request_type = %s ;
+    SELECT MAX(request_id) FROM public.request WHERE request_type = %s AND request_id >= %s;
 
 {% endsql %}
 
