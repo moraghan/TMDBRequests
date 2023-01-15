@@ -30,9 +30,9 @@ def main():
     db_conn = db_create_connection()
     db_create_tables(db_conn)
     db_starting_request_key = db_get_next_request_for_type(db_conn, request_type, starting_request_key)
-    print(f'starting at request key {starting_request_key}')
+    print(f'starting at request key {db_starting_request_key}')
 
-    process_requests_for_type(api_key, db_conn, request_type, starting_request_key,no_requests_to_make)
+    process_requests_for_type(api_key, db_conn, request_type, db_starting_request_key,no_requests_to_make)
 
     db_conn.close()
 
