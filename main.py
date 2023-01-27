@@ -119,6 +119,16 @@ def db_create_tables(db_conn):
             country_descr VARCHAR(100) UNIQUE
             );
 
+            CREATE TABLE if NOT EXISTS PUBLIC.movie_credit
+            (
+            movie_id INT NOT NULL,
+            persion_id INT NOT NULL,
+            cast_order_no INT NOT NULL,
+            cast_role varchar(10)
+            character_name varchar(100),
+            PRIMARY KEY  (movie_id, person_id, cast_order_no)
+            )
+            
         """
 
     cursor = db_conn.cursor()
