@@ -12,26 +12,27 @@ parser.add_argument('-b', '--BatchRequestSize', type=int, default=100000)
 
 args = parser.parse_args()
 
-
 def main():
     api_key = "dd764c65e8685d30f05dddbe0f2f9e04"
     request_type = args.TypeOfRequest
     starting_request_key = args.StartingRequestID
     no_of_requests_to_make = args.BatchRequestSize
-
     db_conn = db_create_connection()
     db_create_tables(db_conn)
     db_starting_request_key = db_get_next_request_for_type(db_conn, request_type, starting_request_key)
     print(f'starting at request key {db_starting_request_key}')
-
     process_requests_for_type(api_key, db_conn, request_type, db_starting_request_key, no_of_requests_to_make)
 
     db_conn.close()
 
 
-def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
-    while next_request_key <= (no_of_requests_to_make + next_request_key):
-        url_for_request = f"https://api.themoviedb.org/3/{request_type}/{next_request_key}?api_key={api_key}"
+def request_to_db(api_key, db_conn, request_type, next_request_key):
+
+        if request_type == 'credits':
+            url_for_request = f"https://api.themoviedb.org/3/movie/{next_request_key}/credits?api_key={api_key}"
+        else:
+            url_for_request = f"https://api.themoviedb.org/3/{request_type}/{next_request_key}?api_key={api_key}"
+
         print(url_for_request)
         _response_data = requests.get(url_for_request)
 
@@ -41,9 +42,15 @@ def process_requests_for_type(api_key, db_conn, request_type, next_request_key, 
             db_insert_request_for_type(db_conn,
                                        request_type,
                                        next_request_key,
-                                       url_for_request,
                                        response_data
                                        )
+
+
+def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
+    while next_request_key <= (no_of_requests_to_make + next_request_key):
+        request_to_db(api_key, db_conn, request_type, next_request_key)
+        if request_type == 'movie':
+            request_to_db(api_key, db_conn, 'credits', next_request_key)
 
         next_request_key += 1
 
@@ -57,10 +64,8 @@ def db_create_tables(db_conn):
     
             CREATE TABLE if NOT EXISTS PUBLIC.request
             (
-            id            serial,
-            request_type  VARCHAR(20)  NOT NULL,
+            request_type  VARCHAR(10)  NOT NULL,
             request_id    INTEGER      NOT NULL,
-            request_url   VARCHAR(150) NOT NULL UNIQUE,
             response_text jsonb,
             PRIMARY KEY   (request_id, request_type)
             );
@@ -142,15 +147,13 @@ def db_get_next_request_for_type(db_conn, request_type, starting_request_key):
 def db_insert_request_for_type(db_conn,
                                request_type,
                                request_key,
-                               request_url,
                                response_text):
     sql = """
      
             INSERT INTO public.request (request_type,
                                         request_id,
-                                        request_url,
                                         response_text)
-            SELECT %s, %s, %s, %s
+            SELECT %s, %s, %s
             WHERE NOT EXISTS (SELECT 1 FROM PUBLIC.request WHERE request_type = %s AND
                                                                  request_id = %s)
             ON CONFLICT DO NOTHING
@@ -160,7 +163,6 @@ def db_insert_request_for_type(db_conn,
     cursor = db_conn.cursor()
     cursor.execute(sql, (request_type,
                          request_key,
-                         request_url,
                          response_text,
                          request_type,
                          request_key,))
