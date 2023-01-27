@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 pg8000 = "*"
 requests = "*"
-snaql = "*"
 
 [dev-packages]
 
