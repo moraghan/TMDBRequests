@@ -48,8 +48,9 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
 
 def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
     while next_request_key <= (no_of_requests_to_make + next_request_key):
+
         request_to_db(api_key, db_conn, request_type, next_request_key)
-        if request_type == 'movie':
+        if request_type == 'movie': # if request type is movie then also retrieve credits
             request_to_db(api_key, db_conn, 'credits', next_request_key)
 
         next_request_key += 1
@@ -62,72 +63,99 @@ def db_create_connection():
 def db_create_tables(db_conn):
     sql = """
     
-            CREATE TABLE if NOT EXISTS PUBLIC.request
+            do $$
+            begin
+                if not exists (select 1
+                               from   pg_type 
+                               where  typname = 'image_path' and
+                                      typnamespace = 'public'::regnamespace) then
+                            create domain public.image_path varchar(100);
+                end if;
+            end$$;
+    
+            create table if not exists public.request
             (
-            request_type  VARCHAR(10)  NOT NULL,
-            request_id    INTEGER      NOT NULL,
+            request_type  varchar(10)  not null,
+            request_id    integer      not null,
             response_text jsonb,
-            PRIMARY KEY   (request_id, request_type)
+            primary key   (request_id, request_type)
             );
         
-            CREATE TABLE if NOT EXISTS PUBLIC.movie
+            create table if not exists public.movie
             (
-            movie_id          INTEGER NOT NULL PRIMARY KEY,
-            title             VARCHAR(100),
-            status            VARCHAR(20),
-            imdb_id           VARCHAR(10),
-            homepage          VARCHAR(150),
+            movie_id          integer not null primary key,
+            title             varchar(100),
+            status            varchar(20),
+            imdb_id           varchar(10),
+            homepage          varchar(150),
             poster_path       image_path,
             backdrop_path     image_path,
-            original_title    VARCHAR(100),
-            original_language VARCHAR(10),
+            original_title    varchar(100),
+            original_language varchar(10),
             tagline           text,
             overview          text,
-            collection_id     INTEGER,
-            runtime           INTEGER,
-            release_date      DATE,
+            collection_id     integer,
+            runtime           integer,
+            release_date      date,
             budget            bigint,
             revenue           bigint,
-            popularity        NUMERIC(7, 2),
-            vote_count        INTEGER,
-            vote_average      NUMERIC(5, 2),
-            profit            bigint GENERATED ALWAYS AS ((revenue - budget)) stored
+            popularity        numeric(7, 2),
+            vote_count        integer,
+            vote_average      numeric(5, 2),
+            profit            bigint generated always as ((revenue - budget)) stored
             );
         
-            CREATE TABLE if NOT EXISTS PUBLIC.collection
+            create table if not exists public.collection
             (
-            collection_id          INTEGER NOT NULL PRIMARY KEY,
-            collection_descr       VARCHAR(100) UNIQUE,
+            collection_id          integer not null primary key,
+            collection_descr       varchar(100) unique,
             collection_poster_path image_path,
             backdrop_poster_path   image_path
             );
         
-            CREATE TABLE if NOT EXISTS PUBLIC.company
+            create table if not exists public.company
             (
-            id                INTEGER PRIMARY KEY,
+            id                integer primary key,
             title             text,
             homepage          text,
             logo_path         text,
             headquarters      text,
-            origin_country    CHAR(2),
-            parent_company_id INTEGER
+            origin_country    char(2),
+            parent_company_id integer
             );
         
-            CREATE TABLE if NOT EXISTS PUBLIC.country
+            create table if not exists public.country
             (
-            country_code  CHAR(2) NOT NULL PRIMARY KEY,
-            country_descr VARCHAR(100) UNIQUE
+            country_code  char(2) not null primary key,
+            country_descr varchar(100) unique
             );
 
-            CREATE TABLE if NOT EXISTS PUBLIC.movie_credit
+            create table if not exists public.movie_credit
             (
-            movie_id INT NOT NULL,
-            persion_id INT NOT NULL,
-            cast_order_no INT NOT NULL,
-            cast_role varchar(10)
+            movie_id       int not null,
+            person_id      int not null,
+            cast_order_no  int not null,
+            cast_role      varchar(10),
             character_name varchar(100),
-            PRIMARY KEY  (movie_id, person_id, cast_order_no)
-            )
+            primary key (movie_id, person_id, cast_order_no)
+            );
+            
+            create table if not exists public.person
+            (
+            person_id     int not null primary key,
+            name          varchar(100),
+            adult_movie   boolean,
+            gender        int,
+            imdb_id       varchar(20),
+            birthday      date,
+            deathday      date,
+            homepage      varchar(100),
+            biography     text,
+            popularity    numeric(7, 2),
+            profile_path  image_path,
+            birth_place   varchar(200),
+            primary_role  varchar(10) 
+            );
             
         """
 
@@ -139,9 +167,9 @@ def db_create_tables(db_conn):
 def db_get_next_request_for_type(db_conn, request_type, starting_request_key):
     sql = """
     
-          SELECT MAX(request_id) 
-          FROM   public.request 
-          WHERE  request_type = %s AND 
+          select max(request_id) 
+          from   public.request 
+          where  request_type = %s and 
                  request_id >= %s;
                  
          """
@@ -160,13 +188,13 @@ def db_insert_request_for_type(db_conn,
                                response_text):
     sql = """
      
-            INSERT INTO public.request (request_type,
+            insert into public.request (request_type,
                                         request_id,
                                         response_text)
-            SELECT %s, %s, %s
-            WHERE NOT EXISTS (SELECT 1 FROM PUBLIC.request WHERE request_type = %s AND
+            select %s, %s, %s
+            where not exists (select 1 from public.request where request_type = %s and
                                                                  request_id = %s)
-            ON CONFLICT DO NOTHING
+            on conflict do nothing
     
         """
 
