@@ -1,5 +1,3 @@
-
-
 create or replace view public.movie_json_vw
 (
 movie_id, title, adult_movie_ind, status, imdb_id, homepage, poster_path, backdrop_path, original_title, original_language,
@@ -31,6 +29,39 @@ select request.request_id                                                       
 from request
 where request.request_type::text = 'movie'::text and
      (request.response_text ->> 'title'::text) is not null;
+
+
+select request.request_id                                                          as movie_id,
+       request.response_text ->> 'title'::text                                     as title
+from request
+where request.request_type::text = 'credits'::text
+
+
+select distinct jsonb_array_elements(response_json -> 'belongs_to_collection'::text) ->
+                'id'::text    as production_company_id, *
+from request
+where request_type = 'movie'
+
+select request.request_id        as person_id,
+       request.response_text ->> 'name'::text                                     as name,
+       case when request.response_text ->> 'adult'::varchar(5) = 'false'
+            then 0 else 1 end                                                      as adult_movie_ind,
+       request.response_text ->> 'gender'::text                                    as gender,
+       request.response_text ->> 'imdb_id'::text                                   as imdb_id,
+       to_date(request.response_text ->> 'birthday'::text, 'yyyy-mm-dd'::text)     as birthday,
+        to_date(request.response_text ->> 'deathday'::text, 'yyyy-mm-dd'::text)    as deathday,
+       request.response_text ->> 'homepage'::text                                  as homepage,
+       request.response_text ->> 'biography'::text                                 as biography,
+      (request.response_text ->> 'popularity'::text)::numeric(7, 2)                as popularity,
+       request.response_text ->> 'profile_path'::image_path                        as profile_path,
+       request.response_text ->> 'place_of_birth'::text                            as place_of_birth,
+       request.response_text ->> 'known_for_department'::text                      as known_for_department
+
+from request
+where request.request_type::text = 'person'::text and
+     (request.response_text ->> 'name'::text) is not null
+
+and  upper(request.response_text ->> 'place_of_birth'::text) like '%GODALMING%'
 
 
 
