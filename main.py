@@ -29,22 +29,22 @@ def main():
 
 def request_to_db(api_key, db_conn, request_type, next_request_key):
 
-        if request_type == 'credits':
-            url_for_request = f"https://api.themoviedb.org/3/movie/{next_request_key}/credits?api_key={api_key}"
-        else:
-            url_for_request = f"https://api.themoviedb.org/3/{request_type}/{next_request_key}?api_key={api_key}"
+    if request_type == 'credits':
+        url_for_request = f"https://api.themoviedb.org/3/movie/{next_request_key}/credits?api_key={api_key}"
+    else:
+        url_for_request = f"https://api.themoviedb.org/3/{request_type}/{next_request_key}?api_key={api_key}"
 
-        print(url_for_request)
-        _response_data = requests.get(url_for_request)
+    print(url_for_request)
+    _response_data = requests.get(url_for_request)
 
-        if _response_data.status_code == 200:
-            response_data = _response_data.json()
-            print('Inserting into DB')
-            db_insert_request_for_type(db_conn,
-                                       request_type,
-                                       next_request_key,
-                                       response_data
-                                       )
+    if _response_data.status_code == 200:
+        response_data = _response_data.json()
+        print('Inserting into DB')
+        db_insert_request_for_type(db_conn,
+                                   request_type,
+                                   next_request_key,
+                                   response_data
+                                   )
 
 
 def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
