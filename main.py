@@ -5,7 +5,7 @@ import requests
 import sql_statements
 
 parser = argparse.ArgumentParser(prog='main.py',
-                                 description='Extracts TMDB data to PostgreSQL database')
+                                 description='Extracts TMDB data into PostgreSQL database')
 
 parser.add_argument('-t', '--TypeOfRequest', choices=['movie', 'person', 'company'], required=True)
 parser.add_argument('-s', '--StartingRequestID', type=int, default=0)
@@ -61,10 +61,10 @@ def db_create_connection():
     return pg8000.connect(user="postgres", password="postgres", database="movie")
 
 
-def db_create_tables(db_conn):
+def db_create_objects(db_conn):
 
     cursor = db_conn.cursor()
-    cursor.execute(sql_statements.create_tables_sql)
+    cursor.execute(sql_statements.create_objects_sql)
     db_conn.commit()
 
 
@@ -85,10 +85,10 @@ def db_insert_request_for_type(db_conn,
 
     cursor = db_conn.cursor()
     cursor.execute(sql_statements.insert_new_request_record_sql, (request_type,
-                         request_key,
-                         response_text,
-                         request_type,
-                         request_key,))
+                                                                  request_key,
+                                                                  response_text,
+                                                                  request_type,
+                                                                  request_key,))
     db_conn.commit()
 
 

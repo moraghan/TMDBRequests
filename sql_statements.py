@@ -1,4 +1,16 @@
-create_tables_sql = """
+create_objects_sql = """
+
+         create or replace function public.is_date (text) returns integer as $$
+         begin
+              if ($1 is null) then
+                  return 1;
+              end if;
+              perform $1::date;
+              return 1;
+         exception when others then
+              return 0;
+         end;
+         $$ language plpgsql;
 
          do $$
          begin
