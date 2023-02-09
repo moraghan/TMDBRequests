@@ -12,6 +12,20 @@ create_objects_sql = """
          end;
          $$ language plpgsql;
 
+
+        create or replace function public.valid_date(text) returns integer as $$
+        begin
+             if ($1 is null) then
+                  return 0;
+              end if;
+              perform to_date($1 , "YYYYMMDD");
+             return 1;
+        exception when others then
+            return 0;
+        end
+        $$ language plpgsql;
+        
+        
          do $$
          begin
              if not exists (select 1

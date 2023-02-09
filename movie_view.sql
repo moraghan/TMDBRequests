@@ -30,28 +30,17 @@ from request
 where request_type::text = 'movie'::text and
      (response_text ->> 'title'::text) is not null;
 
+drop view public.person_json_vw
 create or replace view public.person_json_vw as
 
-with valid_dates as
-(
-
-select *,
-       is_date(response_text ->> 'birthday'::text) as birthday_valid_ind,
-       is_date(response_text ->> 'deathday'::text) as deathday_valid_ind
-from   request
-where request_type::text = 'person'::text and
- (response_text ->> 'name'::text) is not null
-
-)
 select request_id                                                          as person_id,
        response_text ->> 'name'::text                                      as name,
        case when response_text ->> 'adult'::varchar(5) = 'false'
             then 0 else 1 end                                                      as adult_movie_ind,
        response_text ->> 'gender'::text                                    as gender,
        response_text ->> 'imdb_id'::text                                   as imdb_id,
-       case when birthday_valid_ind then to_date(response_text ->> 'birthday'::text, 'yyyy-mm-dd'::text)
-            else null end as birthday,
-       to_date(response_text ->> 'deathday'::text, 'yyyy-mm-dd'::text)     as deathday,
+       to_date_yyyymmdd(response_text ->> 'birthday'::text)           as birthday,
+       to_date_yyyymmdd(response_text ->> 'deathday'::text)           as deathday,
        response_text ->> 'homepage'::text                                  as homepage,
        response_text ->> 'biography'::text                                 as biography,
        (response_text ->> 'popularity'::text)::numeric(7, 2)               as popularity,
@@ -107,6 +96,8 @@ where   request_type = 'credits'
 select * from request where request_type = 'credits' and request_id = 2
 
 select * from movie_person_json_vw where person_id is null
+
+create or replace view public.movie_person_json_vw as
 
 with mvp as
 (
