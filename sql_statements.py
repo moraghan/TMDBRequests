@@ -3,7 +3,7 @@ create_objects_sql = """
          create or replace function public.is_date (text) returns integer as $$
          begin
               if ($1 is null) then
-                  return 1;
+                  return 0;
               end if;
               perform $1::date;
               return 1;
