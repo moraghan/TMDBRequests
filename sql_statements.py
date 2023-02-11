@@ -13,15 +13,15 @@ create_objects_sql = """
          $$ language plpgsql;
 
 
-        create or replace function public.valid_date(text) returns integer as $$
+        create or replace function public.to_date_yyyymmdd(text) returns integer as $$
         begin
              if ($1 is null) then
-                  return 0;
+                  return null;
               end if;
-              perform to_date($1 , "YYYYMMDD");
+              perform to_date($1 , "YYYY-MM-DD");
              return 1;
         exception when others then
-            return 0;
+            return null;
         end
         $$ language plpgsql;
         

@@ -1,14 +1,10 @@
 create or replace view public.movie_json_vw
-(
-movie_id, title, adult_movie_ind, status, imdb_id, homepage, poster_path, backdrop_path, original_title, original_language,
-tagline, overview, belongs_to_collection, runtime, release_date, budget, revenue, popularity, vote_count,
-vote_average
-)
+
 as
 select request_id                                                          as movie_id,
        response_text ->> 'title'::text                                     as title,
        case when response_text ->> 'adult'::varchar(5) = 'false'
-            then 0 else 1 end                                                      as adult_movie_ind,
+            then 0 else 1 end                                              as adult_movie_ind,
        response_text ->> 'status'::text                                    as status,
        response_text ->> 'imdb_id'::text                                   as imdb_id,
        response_text ->> 'homepage'::text                                  as homepage,
@@ -20,7 +16,7 @@ select request_id                                                          as mo
        response_text ->> 'overview'::text                                  as overview,
        response_text ->> 'belongs_to_collection'::text                     as belongs_to_collection,
        response_text ->> 'runtime'::text                                   as runtime,
-       to_date(response_text ->> 'release_date'::text, 'yyyy-mm-dd'::text) as release_date,
+       to_date_yyyymmdd(response_text ->> 'release_date'::text)            as release_date,
        (response_text ->> 'budget'::text)::bigint                          as budget,
        (response_text ->> 'revenue'::text)::bigint                         as revenue,
        (response_text ->> 'popularity'::text)::numeric(7, 2)               as popularity,
@@ -30,17 +26,17 @@ from request
 where request_type::text = 'movie'::text and
      (response_text ->> 'title'::text) is not null;
 
-drop view public.person_json_vw
+
 create or replace view public.person_json_vw as
 
 select request_id                                                          as person_id,
        response_text ->> 'name'::text                                      as name,
        case when response_text ->> 'adult'::varchar(5) = 'false'
-            then 0 else 1 end                                                      as adult_movie_ind,
+            then 0 else 1 end                                              as adult_movie_ind,
        response_text ->> 'gender'::text                                    as gender,
        response_text ->> 'imdb_id'::text                                   as imdb_id,
-       to_date_yyyymmdd(response_text ->> 'birthday'::text)           as birthday,
-       to_date_yyyymmdd(response_text ->> 'deathday'::text)           as deathday,
+       to_date_yyyymmdd(response_text ->> 'birthday'::text)                as birthday,
+       to_date_yyyymmdd(response_text ->> 'deathday'::text)                as deathday,
        response_text ->> 'homepage'::text                                  as homepage,
        response_text ->> 'biography'::text                                 as biography,
        (response_text ->> 'popularity'::text)::numeric(7, 2)               as popularity,
@@ -50,7 +46,12 @@ select request_id                                                          as pe
 
 from request
 where request_type::text = 'person'::text and
-     (response_text ->> 'name'::text) is not null;
+      response_text ->> 'name'::text is not null;
+
+
+select jsonb_each(response_text) from request where request_type = 'movie' and request_id = 2
+select distinct jsonb_object_keys(response_text)
+from request where request_type = 'credits' and request_id = 2
 
 create view public.movie_person_json_vw as
 
