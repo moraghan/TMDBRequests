@@ -1,3 +1,5 @@
+drop view public.movie_json_vw
+
 create or replace view public.movie_json_vw
 
 as
@@ -14,7 +16,7 @@ select request_id                                                          as mo
        response_text ->> 'original_language'::text                         as original_language,
        response_text ->> 'tagline'::text                                   as tagline,
        response_text ->> 'overview'::text                                  as overview,
-       response_text ->> 'belongs_to_collection'::text                     as belongs_to_collection,
+       (response_text -> 'belongs_to_collection' ->> 'id')::integer        as collection_id,
        response_text ->> 'runtime'::text                                   as runtime,
        to_date_yyyymmdd(response_text ->> 'release_date'::text)            as release_date,
        (response_text ->> 'budget'::text)::bigint                          as budget,
@@ -55,85 +57,100 @@ from request where request_type = 'credits' and request_id = 2
 
 create view public.movie_person_json_vw as
 
+drop view movie_person_json_vw
+
+create or replace view movie_person_json_vw as
+
 with mvp as
 (
-select request_id as movie_id,
-       response_text,
-       (jsonb_array_elements(response_text -> 'cast') ->> 'id')::integer as cast_person_id,
-       (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer as cast_person_id,
-       *
+select distinct
+              request_id                                                                      as movie_id,
+              (jsonb_array_elements(response_text -> 'cast') ->> 'id')::integer               as person_id,
+              (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean            as adult_id,
+              jsonb_array_elements(response_text -> 'cast') ->> 'character'                   as character_name,
+              (jsonb_array_elements(response_text -> 'cast') ->> 'order')::integer            as cast_order_no,
+              jsonb_array_elements(response_text -> 'cast') ->> 'known_for_department'        as cast_role,
+              null                                                                            as crew_job,
+              null                                                                            as crew_department
 from request
-where  request_type = 'credits'
+where request_type = 'credits'
 
+union all
+
+select distinct
+              request_id                                                                      as movie_id,
+              (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer               as person_id,
+              (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean            as adult_id,
+              jsonb_array_elements(response_text -> 'crew') ->> 'character'                   as character_name,
+              (jsonb_array_elements(response_text -> 'crew') ->> 'order')::integer            as cast_order_no,
+              jsonb_array_elements(response_text -> 'crew') ->> 'known_for_department'        as cast_role,
+              jsonb_array_elements(response_text -> 'crew') ->> 'job'                         as crew_job,
+              jsonb_array_elements(response_text -> 'crew') ->> 'department'                  as crew_department
+from request
+where request_type = 'credits'
 )
-select  request_id as movie_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'id')::integer as person_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean as adult_id,
-        jsonb_array_elements(response_text -> 'cast') ->> 'character' as character_name,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'order')::integer as cast_order_no,
-        jsonb_array_elements(response_text -> 'cast') ->> 'known_for_department' as cast_role,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'popularity')::numeric(7,2) as popularity,
-        jsonb_array_elements(response_text -> 'cast') ->> 'profile_path' as prifile_path,
-        null as crew_job,
-        null as crew_department
-from    request
-where   request_type = 'credits'
+select *
+from  mvp
+where person_id is not null;
 
-union
 
-select  request_id as movie_id,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer as person_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean as adult_id,
-        jsonb_array_elements(response_text -> 'crew') ->> 'character' as character_name,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'order')::integer as cast_order_no,
-        jsonb_array_elements(response_text -> 'crew') ->> 'known_for_department' as cast_role,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'popularity')::numeric(7,2) as popularity,
-        jsonb_array_elements(response_text -> 'crew') ->> 'profile_path' as profile_path,
-        jsonb_array_elements(response_text -> 'crew') ->> 'job' as crew_job,
-        jsonb_array_elements(response_text -> 'crew') ->> 'department' as crew_department
-from    request
-where   request_type = 'credits'
+select m.movie_id,
+       m.title,
+       m.release_date,
+       p.name,
+       p.birthday,
+       p.deathday,
+       mp.cast_order_no,
+       mp.character_name,
+       mp.cast_role,
+       mp.crew_job,
+       mp.crew_department
+from movie_person_json_vw mp
+join movie_json_vw m on mp.movie_id = m.movie_id
+join person_json_vw p on mp.person_id = p.person_id
+where m.title = 'Reservoir Dogs'
+order by mp.movie_id, mp.cast_order_no
+
+select c.collection_name, m.release_date, m.title, m.revenue - m.budget as profit,
+       sum(m.revenue - m.budget ) over (partition by c.collection_name) as collection_profit
+
+from json_collection_vw c
+join movie_json_vw  m on c.collection_id = m.collection_id
+where m.adult_movie_ind = 0 and m.original_language = 'en' and m.status = 'Released'
+order by collection_profit desc, c.collection_name, m.release_date
+
+select * from p where movie_id = 3
+
+
+drop index
+CREATE INDEX response_text_gin ON request USING gin (response_text);
 
 select * from request where request_type = 'credits' and request_id = 2
 
 select * from movie_person_json_vw where person_id is null
 
-create or replace view public.movie_person_json_vw as
 
-with mvp as
+create or replace view public.json_collection_vw as
+
+with dc as
 (
-select request_id as movie_id,
-       response_text,
-       (jsonb_array_elements(response_text -> 'cast') ->> 'id')::integer as cast_person_id,
-       (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer as crew_person_id
-from request
-where  request_type = 'credits'
-
+select distinct (response_text -> 'belongs_to_collection' ->> 'id')::integer               as collection_id,
+                (response_text -> 'belongs_to_collection' ->> 'name')::text                as collection_name,
+                (response_text -> 'belongs_to_collection' ->> 'poster_path')::image_path   as poster_path,
+                (response_text -> 'belongs_to_collection' ->> 'backdrop_path')::image_path as backdrop_path
+from   request
+where  request_type = 'movie'
+and    response_text -> 'belongs_to_collection' ->> 'id' is not null
 )
-select  movie_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'id')::integer as person_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean as adult_id,
-        jsonb_array_elements(response_text -> 'cast') ->> 'character' as character_name,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'order')::integer as cast_order_no,
-        jsonb_array_elements(response_text -> 'cast') ->> 'known_for_department' as cast_role,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'popularity')::numeric(7,2) as popularity,
-        jsonb_array_elements(response_text -> 'cast') ->> 'profile_path' as prifile_path,
-        null as crew_job,
-        null as crew_department
-from    mvp
-where   cast_person_id is not null
+select collection_id,
+       collection_name,
+       max(poster_path) poster_path,
+       max(backdrop_path) backdrop_path
+from   dc
+group by collection_id,
+         collection_name
 
-union
+select collection_name, count(*) from json_collection_vw group by collection_name
+having count(*) > 1
 
-select  movie_id,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer as person_id,
-        (jsonb_array_elements(response_text -> 'cast') ->> 'adult')::boolean as adult_id,
-        jsonb_array_elements(response_text -> 'crew') ->> 'character' as character_name,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'order')::integer as cast_order_no,
-        jsonb_array_elements(response_text -> 'crew') ->> 'known_for_department' as cast_role,
-        (jsonb_array_elements(response_text -> 'crew') ->> 'popularity')::numeric(7,2) as popularity,
-        jsonb_array_elements(response_text -> 'crew') ->> 'profile_path' as profile_path,
-        jsonb_array_elements(response_text -> 'crew') ->> 'job' as crew_job,
-        jsonb_array_elements(response_text -> 'crew') ->> 'department' as crew_department
-from    mvp
-where   crew_person_id is not null
+select * from json_collection_vw  where collection_name = 'Django Collection'

@@ -1,26 +1,12 @@
 create_objects_sql = """
 
-         create or replace function public.is_date (text) returns integer as $$
-         begin
-              if ($1 is null) then
-                  return 0;
-              end if;
-              perform $1::date;
-              return 1;
-         exception when others then
-              return 0;
-         end;
-         $$ language plpgsql;
-
-
-        create or replace function public.to_date_yyyymmdd(text) returns integer as $$
+        create or replace function public.to_date_yyyymmdd(text) returns date as $$
         begin
              if ($1 is null) then
                   return null;
-              end if;
-              perform to_date($1 , "YYYY-MM-DD");
-             return 1;
-        exception when others then
+             end if;
+             return to_date($1 , 'YYYY-MM-DD');
+              exception when others then
             return null;
         end
         $$ language plpgsql;
