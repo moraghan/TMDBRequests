@@ -51,9 +51,9 @@ where request_type::text = 'person'::text and
       response_text ->> 'name'::text is not null;
 
 
-select jsonb_each(response_text) from request where request_type = 'movie' and request_id = 2
+select jsonb_each(response_text) from request where request_type = 'company' and request_id = 2
 select distinct jsonb_object_keys(response_text)
-from request where request_type = 'credits' and request_id = 2
+from request where request_type = 'company' and request_id = 2
 
 create view public.movie_person_json_vw as
 
@@ -125,7 +125,7 @@ select * from p where movie_id = 3
 drop index
 CREATE INDEX response_text_gin ON request USING gin (response_text);
 
-select * from request where request_type = 'credits' and request_id = 2
+select * from request where request_type = 'company' and request_id = 3
 
 select * from movie_person_json_vw where person_id is null
 
@@ -154,3 +154,33 @@ select collection_name, count(*) from json_collection_vw group by collection_nam
 having count(*) > 1
 
 select * from json_collection_vw  where collection_name = 'Django Collection'
+
+select distinct
+                (jsonb_array_elements(response_text -> 'production_companies') ->> 'id')::integer  as company_id,
+                (jsonb_array_elements(response_text -> 'production_companies') ->> 'name')::text  as company_name,
+                (jsonb_array_elements(response_text -> 'production_companies') ->> 'logo_path')::text  as logo_path,
+                (jsonb_array_elements(response_text -> 'production_companies') ->> 'origin_country')::text  as origin_country
+from   request
+where  request_type = 'movie'
+
+select distinct request_id as company_id,
+                response_text ->> 'name'::text                as company_name,
+                response_text ->> 'homepage'::text            as homepage,
+                response_text ->> 'logo_path'::image_path     as logo_path,
+                response_text ->> 'description'::text            as description,
+                response_text ->> 'headquarters'::text            as headquarters,
+                response_text ->> 'origin_country'::text            as origin_country,
+                (response_text ->> 'parent_company')::text            as parent_company
+                --(jsonb_array_elements(response_text -> 'parent_company') ->> 'id')  as origin_country
+from   request
+where  request_type = 'company'
+
+select distinct request_id as company_id,
+                (jsonb_array_elements(response_text -> 'crew') ->> 'id')::integer               as person_id,
+                (jsonb_array_elements(response_text -> 'parent_company') ->> 'id')  as origin_country
+from   request
+where  request_type = 'company' and request_id = 2
+
+select    *
+from       request t
+cross join json_array_elements('parent_company' -> 'id') each_attribute
