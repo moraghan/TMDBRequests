@@ -58,7 +58,7 @@ create_objects_sql = """
          create table if not exists public.collection
          (
          collection_id          integer not null primary key,
-         collection_descr       varchar(100) unique,
+         collection_descr       varchar(100),
          collection_poster_path image_path,
          backdrop_poster_path   image_path
          );
@@ -69,7 +69,7 @@ create_objects_sql = """
          company_name      varchar(200),
          homepage          varchar(200),
          logo_path         varchar(100),
-         headquarters      varchar(200),
+         headquarters      varchar(300),
          origin_country    char(2),
          parent_company_id integer
          );
