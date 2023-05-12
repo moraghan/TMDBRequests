@@ -67,7 +67,7 @@ create_objects_sql = """
          (
          company_id        integer primary key,
          company_name      varchar(200),
-         homepage          varchar(200),
+         homepage          varchar(300),
          logo_path         varchar(100),
          headquarters      varchar(300),
          origin_country    char(2),
