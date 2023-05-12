@@ -1,5 +1,32 @@
 drop view public.movie_json_vw
 
+select * from movie_json_small_vw where release_date > '20230101'
+create or replace view public.movie_json_small_vw
+
+as
+select request_id                                                          as movie_id,
+       response_text ->> 'title'::text                                     as title,
+       response_text ->> 'status'::text                                    as status,
+       response_text ->> 'imdb_id'::text                                   as imdb_id,
+       response_text ->> 'homepage'::text                                  as homepage,
+       response_text ->> 'original_title'::text                            as original_title,
+       response_text ->> 'original_language'::text                         as original_language,
+       response_text ->> 'tagline'::text                                   as tagline,
+       response_text ->> 'overview'::text                                  as overview,
+       (response_text -> 'belongs_to_collection' ->> 'id')::integer        as collection_id,
+       (response_text ->> 'runtime')::integer                                   as runtime,
+       to_date_yyyymmdd(response_text ->> 'release_date'::text)            as release_date,
+       (response_text ->> 'budget'::text)::bigint                          as budget,
+       (response_text ->> 'revenue'::text)::bigint                         as revenue,
+       (response_text ->> 'popularity'::text)::numeric(7, 2)               as popularity,
+       (response_text ->> 'vote_count'::text)::integer                     as vote_count,
+       (response_text ->> 'vote_average'::text)::numeric(5, 2)             as vote_average
+from request
+where request_type::text = 'movie'::text and
+     (response_text ->> 'title'::text) is not null and
+     response_text ->> 'adult'::varchar(5) = 'false';
+
+
 create or replace view public.movie_json_vw
 
 as
@@ -17,7 +44,7 @@ select request_id                                                          as mo
        response_text ->> 'tagline'::text                                   as tagline,
        response_text ->> 'overview'::text                                  as overview,
        (response_text -> 'belongs_to_collection' ->> 'id')::integer        as collection_id,
-       response_text ->> 'runtime'::text                                   as runtime,
+       (response_text ->> 'runtime')::integer                                   as runtime,
        to_date_yyyymmdd(response_text ->> 'release_date'::text)            as release_date,
        (response_text ->> 'budget'::text)::bigint                          as budget,
        (response_text ->> 'revenue'::text)::bigint                         as revenue,
@@ -93,7 +120,50 @@ select *
 from  mvp
 where person_id is not null;
 
+create or replace view company_json_vw as
 
+select distinct request_id                                              as company_id,
+                response_text ->> 'name'::text                          as company_name,
+                response_text ->> 'homepage'::text                      as homepage,
+                response_text ->> 'logo_path'::image_path               as logo_path,
+                response_text ->> 'description'::text                   as description,
+                response_text ->> 'headquarters'::text                  as headquarters,
+                response_text ->> 'origin_country'::text                as origin_country,
+                (r.response_text -> 'parent_company' ->> 'id')::integer as parent_company_id
+from   request r
+where  r.request_type = 'company'
+
+create or replace view public.json_collection_vw as
+
+with dc as
+(
+select distinct (response_text -> 'belongs_to_collection' ->> 'id')::integer               as collection_id,
+                (response_text -> 'belongs_to_collection' ->> 'name')::text                as collection_name,
+                (response_text -> 'belongs_to_collection' ->> 'poster_path')::image_path   as poster_path,
+                (response_text -> 'belongs_to_collection' ->> 'backdrop_path')::image_path as backdrop_path
+from   request
+where  request_type = 'movie'
+and    response_text -> 'belongs_to_collection' ->> 'id' is not null
+)
+select collection_id,
+       collection_name,
+       max(poster_path) poster_path,
+       max(backdrop_path) backdrop_path
+from   dc
+group by collection_id,
+         collection_name
+
+
+create view genre_json_vw as
+
+select distinct (jsonb_array_elements(response_text -> 'genres') ->> 'id')::integer  as genre_id,
+                (jsonb_array_elements(response_text -> 'genres') ->> 'name')::text  as genre_name
+from   request
+where  request_type = 'movie'
+
+
+---------
+select count(*) from company_json_vw
 select m.movie_id,
        m.title,
        m.release_date,
@@ -183,4 +253,28 @@ where  request_type = 'company' and request_id = 2
 
 select    *
 from       request t
-cross join json_array_elements('parent_company' -> 'id') each_attribute
+
+SELECT row_to_json(request_id::text)
+from request where request_id = 2
+
+	select * from json_each(select response_text from request where request_id = 2)
+
+
+select distinct request_id                                              as company_id,
+                response_text ->> 'name'::text                          as company_name,
+                response_text ->> 'homepage'::text                      as homepage,
+                response_text ->> 'logo_path'::image_path               as logo_path,
+                response_text ->> 'description'::text                   as description,
+                response_text ->> 'headquarters'::text                  as headquarters,
+                response_text ->> 'origin_country'::text                as origin_country,
+                (r.response_text -> 'parent_company' ->> 'id')::integer as parent_company_id
+from   request r
+where  r.request_type = 'company'
+
+
+select request_ID,
+       value::jsonb ->> 'id' as parent_company_id
+ from request,
+      jsonb_each_text(request.response_text)
+ where request_type = 'company'
+   and key = 'parent_company'

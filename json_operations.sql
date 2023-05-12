@@ -227,3 +227,7 @@ select request.request_id                                                       
 from request
 where request.request_type::text = 'movie'::text
   and (request.response_text ->> 'title'::text) is not null;
+
+truncate table movie
+insert into movie
+select * from movie_json_vw
