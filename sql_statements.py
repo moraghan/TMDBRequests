@@ -34,6 +34,7 @@ create_objects_sql = """
          (
          movie_id          integer not null primary key,
          title             text,
+         adult_movie       boolean,
          status            varchar(20),
          imdb_id           varchar(10),
          homepage          text,
@@ -69,7 +70,7 @@ create_objects_sql = """
          company_name      varchar(200),
          homepage          varchar(300),
          logo_path         varchar(100),
-         headquarters      varchar(300),
+         headquarters      varchar(1000),
          origin_country    char(2),
          parent_company_id integer
          );
@@ -77,7 +78,7 @@ create_objects_sql = """
          create table if not exists public.country
          (
          country_code  char(2) not null primary key,
-         country_descr varchar(100) unique
+         country_descr varchar(100) 
          );
          
          create table if not exists public.movie_country
@@ -108,7 +109,7 @@ create_objects_sql = """
          movie_id       int not null,
          person_id      int not null,
          department     varchar(50),
-         job            varchar(50),
+         job            varchar(100),
          primary key (movie_id, person_id, department, job)
          );
          
@@ -170,6 +171,7 @@ insert into public.movie
 (
 movie_id, 
 title, 
+adult_movie,
 status, 
 imdb_id, 
 homepage, 
@@ -190,6 +192,7 @@ vote_average
 )
 select %s as movie_id, 
        %s as title, 
+       %s as adult,
        %s as status, 
        %s as imdb_id, 
        %s as homepage, 
