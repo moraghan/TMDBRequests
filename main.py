@@ -225,13 +225,6 @@ def db_insert_company_record(db_conn,
                              ):
     cursor = db_conn.cursor()
 
-    # company_id = 100
-    # company_name = 'comp name'
-    # homepage = 'home'
-    # logo_path = 'p'
-    # headquarters = 'hq'
-    # origin_country = 'oc'
-
     parent_company_id = None
 
     if parent_company:
