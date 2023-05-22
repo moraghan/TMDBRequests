@@ -18,11 +18,12 @@ args = parser.parse_args()
 def main():
     api_key = "dd764c65e8685d30f05dddbe0f2f9e04"
     request_type = args.TypeOfRequest
-    starting_request_key = args.StartingRequestID
+    db_starting_request_key = args.StartingRequestID
     no_of_requests_to_make = args.BatchRequestSize
     db_conn = db_create_connection()
     db_create_objects(db_conn)
-    db_starting_request_key = db_get_next_request_for_type(db_conn, request_type, starting_request_key)
+    if not db_starting_request_key:
+        db_starting_request_key = db_get_next_request_for_type(db_conn, request_type, db_starting_request_key)
     print(f'starting at request key {db_starting_request_key}')
     process_requests_for_type(api_key, db_conn, request_type, db_starting_request_key, no_of_requests_to_make)
     db_conn.close()
@@ -134,14 +135,15 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
 
 
 def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
-    while next_request_key <= (no_of_requests_to_make + next_request_key):
+    while next_request_key <= (100000000):
 
         request_to_db(api_key, db_conn, request_type, next_request_key)
         if request_type == 'movie':  # if request type is movie then also retrieve credits
             request_to_db(api_key, db_conn, 'credits', next_request_key)
 
         next_request_key += 1
-
+        if no_of_requests_to_make == 2 :
+            break
 
 def db_create_connection():
     return pg8000.connect(user="postgres", password="postgres", database="tmdb")
