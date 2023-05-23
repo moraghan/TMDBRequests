@@ -265,6 +265,10 @@ def db_insert_person_record(db_conn,
     if deathday:
         if deathday == '03.05.2017':
             deathday = '2017-03-05'
+
+        if deathday == '10-12-2002':
+            deathday = '2002-12-10'
+
         datetime.strptime(deathday, '%Y-%m-%d')
 
     gender_char = 'U'
