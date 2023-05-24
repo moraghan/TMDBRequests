@@ -126,6 +126,10 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
                                                     person_id,
                                                     department,
                                                     job)
+                while 1 < 2:
+
+                    db_process_person(db_conn,
+                                      api_key)
 
         db_insert_request_for_type(db_conn,
                                    request_type,
@@ -163,6 +167,12 @@ def db_get_next_request_for_type(db_conn, request_type, starting_request_key):
         current_max_key = 1
     return current_max_key
 
+def db_process_person(db_conn, api_key):
+    cursor = db_conn.cursor()
+    cursor.execute(sql_statements.get_min_person_from_credit_sql)
+    person_key = cursor.fetchone()[0]
+    print(person_key,'>>>>>')
+    request_to_db(api_key, db_conn, 'person', person_key)
 
 def db_insert_request_for_type(db_conn,
                                request_type,

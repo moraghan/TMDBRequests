@@ -1,27 +1,5 @@
 create_objects_sql = """
-
-        create or replace function public.to_date_yyyymmdd(text) returns date as $$
-        begin
-             if ($1 is null) then
-                  return null;
-             end if;
-             return to_date($1 , 'YYYY-MM-DD');
-              exception when others then
-            return null;
-        end
-        $$ language plpgsql;
-        
-        
-         do $$
-         begin
-             if not exists (select 1
-                            from   pg_type 
-                            where  typname = 'image_path' and
-                                   typnamespace = 'public'::regnamespace) then
-                         create domain public.image_path varchar(100);
-             end if;
-         end$$;
-
+ 
          create table if not exists public.request
          (
          request_type  varchar(10)  not null,
@@ -387,5 +365,51 @@ select %s as movie_id,
        %s as department,
        %s as job
 where not exists (select 1 from public.movie_crew where movie_id = %s and person_id = %s and department = %s and job = %s)
+
+"""
+
+get_missing_person_from_credit_sql = """
+
+select distinct 
+       mc.person_id
+from   public.movie_credit mc
+left 
+join  public.person p 
+on    mc.person_id = p.person_id
+where p.person_id is null
+
+union
+
+select distinct 
+       mc.person_id
+from   public.movie_crew mc
+left 
+join  public.person p 
+on    mc.person_id = p.person_id
+where p.person_id is null
+
+"""
+
+get_min_person_from_credit_sql = """
+
+select 
+       min(mc.person_id) person_id
+from   public.movie_credit mc
+left 
+join  public.person p 
+on    mc.person_id = p.person_id
+where p.person_id is null
+
+"""
+
+get_min_person_from_crew_sql = """
+
+select 
+       min(mc.person_id) person_id
+from   public.movie_crew mc
+left 
+join  public.person p 
+on    mc.person_id = p.person_id
+where p.person_id is null
 
 """
