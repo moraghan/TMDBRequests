@@ -126,10 +126,7 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
                                                     person_id,
                                                     department,
                                                     job)
-                while 1 < 2:
 
-                    db_process_person(db_conn,
-                                      api_key)
 
         db_insert_request_for_type(db_conn,
                                    request_type,

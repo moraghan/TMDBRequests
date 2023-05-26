@@ -37,7 +37,7 @@ create_objects_sql = """
          create table if not exists public.collection
          (
          collection_id          integer not null primary key,
-         collection_descr       varchar(100),
+         collection_descr       varchar(200),
          collection_poster_path image_path,
          backdrop_poster_path   image_path
          );
