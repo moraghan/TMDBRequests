@@ -390,26 +390,26 @@ where p.person_id is null
 
 """
 
-get_min_person_from_credit_sql = """
 
-select 
-       min(mc.person_id) person_id
-from   public.movie_credit mc
-left 
-join  public.person p 
-on    mc.person_id = p.person_id
-where p.person_id is null
+
+get_next_request_id_for_type_sql = """
+
+select request_id as request_id
+from   public.request_q
+where  request_type = %s and 
+       response_status = 'Waiting'
+order
+by     random() limit 1
+
+"""
+
+update_request_for_type_sql = """
+
+update public.request_q
+set    response_status = %s,
+       last_updated = now()
+where  request_type = %s and 
+       request_id = %s
 
 """
 
-get_min_person_from_crew_sql = """
-
-select 
-       min(mc.person_id) person_id
-from   public.movie_crew mc
-left 
-join  public.person p 
-on    mc.person_id = p.person_id
-where p.person_id is null
-
-"""

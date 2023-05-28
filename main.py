@@ -9,8 +9,6 @@ parser = argparse.ArgumentParser(prog='main.py',
                                  description='Extracts TMDB data into PostgreSQL database')
 
 parser.add_argument('-t', '--TypeOfRequest', choices=['movie', 'person', 'company'], required=True)
-parser.add_argument('-s', '--StartingRequestID', type=int, default=0)
-parser.add_argument('-b', '--BatchRequestSize', type=int, default=100000)
 
 args = parser.parse_args()
 
@@ -18,14 +16,9 @@ args = parser.parse_args()
 def main():
     api_key = "dd764c65e8685d30f05dddbe0f2f9e04"
     request_type = args.TypeOfRequest
-    db_starting_request_key = args.StartingRequestID
-    no_of_requests_to_make = args.BatchRequestSize
     db_conn = db_create_connection()
     db_create_objects(db_conn)
-    if not db_starting_request_key:
-        db_starting_request_key = db_get_next_request_for_type(db_conn, request_type, db_starting_request_key)
-    print(f'starting at request key {db_starting_request_key}')
-    process_requests_for_type(api_key, db_conn, request_type, db_starting_request_key, no_of_requests_to_make)
+    process_requests_for_type(api_key, db_conn, request_type)
     db_conn.close()
 
 
@@ -37,10 +30,9 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
 
     print(url_for_request)
     _response_data = requests.get(url_for_request)
-
-    if _response_data.status_code == 200:
+    response_status = _response_data.status_code
+    if response_status == 200:
         response_data = _response_data.json()
-        print('Inserting into DB')
 
         if request_type == 'company':
             print(response_data)
@@ -127,24 +119,28 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
                                                     department,
                                                     job)
 
-
         db_insert_request_for_type(db_conn,
                                    request_type,
                                    next_request_key,
                                    response_data
                                    )
 
+    db_update_request_for_type(db_conn, request_type, next_request_key, response_status)
 
-def process_requests_for_type(api_key, db_conn, request_type, next_request_key, no_of_requests_to_make):
-    while next_request_key <= (100000000):
 
+def process_requests_for_type(api_key, db_conn, request_type):
+    next_request_key = db_get_next_request_for_type(db_conn, request_type)
+    if not next_request_key:
+        print('Nothing to process')
+        exit(0)
+    while next_request_key:
+        print(next_request_key)
         request_to_db(api_key, db_conn, request_type, next_request_key)
         if request_type == 'movie':  # if request type is movie then also retrieve credits
             request_to_db(api_key, db_conn, 'credits', next_request_key)
 
-        next_request_key += 1
-        if no_of_requests_to_make == 2 :
-            break
+        next_request_key = db_get_next_request_for_type(db_conn, request_type)
+
 
 def db_create_connection():
     return pg8000.connect(user="postgres", password="postgres", database="tmdb")
@@ -156,20 +152,18 @@ def db_create_objects(db_conn):
     db_conn.commit()
 
 
-def db_get_next_request_for_type(db_conn, request_type, starting_request_key):
+def db_get_next_request_for_type(db_conn, request_type):
     cursor = db_conn.cursor()
-    cursor.execute(sql_statements.get_last_request_for_type_sql, (request_type, starting_request_key))
-    current_max_key = cursor.fetchone()[0]
-    if current_max_key is None:
-        current_max_key = 1
-    return current_max_key
+    cursor.execute(sql_statements.get_next_request_id_for_type_sql, [request_type])
+    request_key = cursor.fetchone()[0]
+    return request_key
 
-def db_process_person(db_conn, api_key):
+
+def db_update_request_for_type(db_conn, request_type, request_id, response_status):
     cursor = db_conn.cursor()
-    cursor.execute(sql_statements.get_min_person_from_credit_sql)
-    person_key = cursor.fetchone()[0]
-    print(person_key,'>>>>>')
-    request_to_db(api_key, db_conn, 'person', person_key)
+    cursor.execute(sql_statements.update_request_for_type_sql, (response_status, request_type, request_id))
+    db_conn.commit()
+
 
 def db_insert_request_for_type(db_conn,
                                request_type,
