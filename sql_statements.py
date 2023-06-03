@@ -1,12 +1,5 @@
 create_objects_sql = """
  
-         create table if not exists public.request
-         (
-         request_type  varchar(10)  not null,
-         request_id    integer      not null,
-         response_text jsonb,
-         primary key   (request_id, request_type)
-         );
 
          create table if not exists public.movie
          (
@@ -122,6 +115,17 @@ create_objects_sql = """
          primary_role  varchar(20) 
          );
 
+         create table if not exists public.request_q
+         (
+         request_type    varchar(10)                         not null,
+         request_id      integer                             not null,
+         response_status varchar(10),
+         last_updated    timestamp default CURRENT_TIMESTAMP not null,
+         primary key (request_id, request_type)
+         );
+
+alter table public.request_q
+    owner to postgres;
      """
 
 get_last_request_for_type_sql = """
@@ -413,3 +417,66 @@ where  request_type = %s and
 
 """
 
+insert_new_requests_q_sql = """
+
+insert into public.request_q
+(
+request_type,
+request_id,
+response_status
+)
+with cte as
+         (select 'movie'                     as request_type,
+                 generate_series(1090000, 1100000) as request_id,
+                 'Waiting'                   as response_status)
+select * from cte
+where not exists (select 1 from public.movie m where m.movie_id = cte.request_id)
+and not exists (select 1 from public.request_q q where q.request_type = cte.request_type and q.request_id = cte.request_id)
+on conflict do nothing;
+
+insert into public.request_q
+(
+request_type,
+request_id,
+response_status
+)
+select distinct
+       'person'      as request_type,
+       mc.person_id  as request_id,
+       'Waiting'     as response_status
+from public.movie_credit mc
+where not exists (select 1 from public.person p where p.person_id = mc.person_id)
+and not exists (select 1 from public.request_q q where q.request_type = 'person' and q.request_id = mc.person_id)
+on conflict do nothing;
+
+insert into public.request_q
+(
+request_type,
+request_id,
+response_status
+)
+select distinct
+       'person'      as request_type,
+       mc.person_id  as request_id,
+       'Waiting'     as response_status
+from public.movie_crew mc
+where not exists (select 1 from public.person p where p.person_id = mc.person_id)
+and not exists (select 1 from public.request_q q where q.request_type = 'person' and q.request_id = mc.person_id)
+on conflict do nothing;
+
+insert into public.request_q
+(
+request_type,
+request_id,
+response_status
+)
+select distinct
+       'company'      as request_type,
+       mc.company_id  as request_id,
+       'Waiting'     as response_status
+from public.movie_company mc
+where not exists (select 1 from public.company c where c.company_id = mc.company_id)
+and not exists (select 1 from public.request_q q where q.request_type = 'company' and q.request_id = mc.company_id)
+on conflict do nothing;
+
+"""

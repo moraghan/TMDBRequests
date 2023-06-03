@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
+
 import argparse
-import json
 import pg8000
 import requests
 import sql_statements
@@ -18,6 +19,7 @@ def main():
     request_type = args.TypeOfRequest
     db_conn = db_create_connection()
     db_create_objects(db_conn)
+    db_create_new_requests_q(db_conn)
     process_requests_for_type(api_key, db_conn, request_type)
     db_conn.close()
 
@@ -28,14 +30,15 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
     else:
         url_for_request = f"https://api.themoviedb.org/3/{request_type}/{next_request_key}?api_key={api_key}"
 
-    print(url_for_request)
+    print(f'Retrieving data from URL:{url_for_request}')
     _response_data = requests.get(url_for_request)
     response_status = _response_data.status_code
+
     if response_status == 200:
+        print(f'Data Found:{_response_data}')
         response_data = _response_data.json()
 
         if request_type == 'company':
-            print(response_data)
             db_insert_company_record(db_conn,
                                      next_request_key,
                                      response_data['name'],
@@ -119,11 +122,8 @@ def request_to_db(api_key, db_conn, request_type, next_request_key):
                                                     department,
                                                     job)
 
-        db_insert_request_for_type(db_conn,
-                                   request_type,
-                                   next_request_key,
-                                   response_data
-                                   )
+    else:
+        print(f'Data Not Found')
 
     db_update_request_for_type(db_conn, request_type, next_request_key, response_status)
 
@@ -140,6 +140,10 @@ def process_requests_for_type(api_key, db_conn, request_type):
             request_to_db(api_key, db_conn, 'credits', next_request_key)
 
         next_request_key = db_get_next_request_for_type(db_conn, request_type)
+        # if next_request_key % 1000:
+        #     print('Creating new requests as 1000th iteration')
+        #     db_create_new_requests_q(db_conn)
+
 
 
 def db_create_connection():
@@ -151,6 +155,10 @@ def db_create_objects(db_conn):
     cursor.execute(sql_statements.create_objects_sql)
     db_conn.commit()
 
+def db_create_new_requests_q(db_conn):
+    cursor = db_conn.cursor()
+    cursor.execute(sql_statements.insert_new_requests_q_sql)
+    db_conn.commit()
 
 def db_get_next_request_for_type(db_conn, request_type):
     cursor = db_conn.cursor()
@@ -164,18 +172,6 @@ def db_update_request_for_type(db_conn, request_type, request_id, response_statu
     cursor.execute(sql_statements.update_request_for_type_sql, (response_status, request_type, request_id))
     db_conn.commit()
 
-
-def db_insert_request_for_type(db_conn,
-                               request_type,
-                               request_key,
-                               response_text):
-    cursor = db_conn.cursor()
-    cursor.execute(sql_statements.insert_new_request_record_sql, (request_type,
-                                                                  request_key,
-                                                                  response_text,
-                                                                  request_type,
-                                                                  request_key,))
-    db_conn.commit()
 
 
 def db_insert_movie_credit_record(db_conn,
@@ -269,6 +265,18 @@ def db_insert_person_record(db_conn,
 
         if deathday == '10-12-2002':
             deathday = '2002-12-10'
+
+        if deathday == '7-9-1980':
+            deathday = '1980-09-07'
+
+        if deathday == '1-16-2016':
+            deathday = '2016-01-16'
+
+        if deathday == '1/1/1961':
+            deathday = '1961-01-01'
+
+        if deathday == '2-21-2005':
+            deathday = '2005-02-21'
 
         datetime.strptime(deathday, '%Y-%m-%d')
 
