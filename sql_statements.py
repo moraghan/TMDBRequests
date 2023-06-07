@@ -427,7 +427,7 @@ response_status
 )
 with cte as
          (select 'movie'                     as request_type,
-                 generate_series(1090000, 1100000) as request_id,
+                 generate_series(1100000, 1200000) as request_id,
                  'Waiting'                   as response_status)
 select * from cte
 where not exists (select 1 from public.movie m where m.movie_id = cte.request_id)
