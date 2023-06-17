@@ -1,6 +1,15 @@
 create_objects_sql = """
  
 
+         create table if not exists public.request_q
+         (
+         request_type    varchar(10)                         not null,
+         request_id      integer                             not null,
+         response_status varchar(10),
+         last_updated    timestamp default CURRENT_TIMESTAMP not null,
+         primary key (request_id, request_type)
+         );
+
          create table if not exists public.movie
          (
          movie_id          integer not null primary key,
@@ -395,7 +404,6 @@ where p.person_id is null
 """
 
 
-
 get_next_request_id_for_type_sql = """
 
 select request_id as request_id
@@ -419,6 +427,7 @@ where  request_type = %s and
 
 insert_new_requests_q_sql = """
 
+
 insert into public.request_q
 (
 request_type,
@@ -427,7 +436,7 @@ response_status
 )
 with cte as
          (select 'movie'                     as request_type,
-                 generate_series(1100000, 1200000) as request_id,
+                 generate_series(200100, (200100 + 10000)) as request_id,
                  'Waiting'                   as response_status)
 select * from cte
 where not exists (select 1 from public.movie m where m.movie_id = cte.request_id)
