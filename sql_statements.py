@@ -436,7 +436,7 @@ response_status
 )
 with cte as
          (select 'movie'                     as request_type,
-                 generate_series(200100, (200100 + 10000)) as request_id,
+                 generate_series(530100, (530100 + 100000)) as request_id,
                  'Waiting'                   as response_status)
 select * from cte
 where not exists (select 1 from public.movie m where m.movie_id = cte.request_id)
@@ -487,5 +487,125 @@ from public.movie_company mc
 where not exists (select 1 from public.company c where c.company_id = mc.company_id)
 and not exists (select 1 from public.request_q q where q.request_type = 'company' and q.request_id = mc.company_id)
 on conflict do nothing;
+
+"""
+
+insert_movies_needing_refresh_sql = """
+
+create temp table if not exists refresh_movie
+(
+movie_id int not null primary key
+);
+
+with movie_for_refresh as
+(
+select distinct
+       movie_id
+from   movie_crew mc
+where  not exists (select 1 from movie m where m.movie_id = mc.movie_id)
+union
+select distinct
+       movie_id
+from   movie_credit mc
+where  not exists (select 1 from movie m where m.movie_id = mc.movie_id)
+union
+select distinct
+       request_id
+from   request_q where response_status = '429' and
+       request_type = 'movie'
+
+)
+insert into refresh_movie
+(
+movie_id
+)
+select movie_id
+from   movie_for_refresh mfr
+where  not exists (select 1 from refresh_movie rm where rm.movie_id = mfr.movie_id);
+
+delete from movie_crew mc
+where exists (select 1 from refresh_movie rm where mc.movie_id = rm.movie_id);
+
+delete from movie_credit mc
+where exists (select 1 from refresh_movie rm where mc.movie_id = rm.movie_id);
+
+delete from request_q q
+where exists (select 1 from refresh_movie rm where rm.movie_id = q.request_id and
+                                                   q.request_type = 'movie')
+
+
+insert into request_q
+(
+request_type,
+request_id,
+response_status
+)
+select distinct
+       'movie',
+       movie_id,
+       'Waiting'
+from   refresh_movie;
+
+drop table refresh_movie
+
+"""
+
+insert_people_needing_refresh_sql = """
+
+create temp table if not exists refresh_person
+(
+person_id int not null primary key
+);
+
+with person_for_refresh as
+(
+select distinct
+       person_id
+from   movie_crew mc
+where  not exists (select 1 from person p where p.person_id = mc.person_id)
+union
+select distinct
+       person_id
+from   movie_credit mc
+where  not exists (select 1 from person p where p.person_id = mc.person_id)
+union
+select distinct
+       request_id
+from   request_q where response_status in ('429', '404') and
+       request_type = 'person'
+
+)
+insert into refresh_person
+(
+person_id
+)
+select person_id
+from   person_for_refresh pfr
+where  not exists (select 1 from refresh_person rp where rp.person_id = pfr.person_id);
+
+delete from movie_crew mc
+where exists (select 1 from refresh_person rp where rp.person_id  = mc.person_id);
+
+delete from movie_credit mc
+where exists (select 1 from refresh_person rp where rp.person_id  = mc.person_id);
+
+delete from request_q q
+where exists (select 1 from refresh_person rp where rp.person_id  = q.request_id and
+                                                   q.request_type = 'person')
+
+
+insert into request_q
+(
+request_type,
+request_id,
+response_status
+)
+select distinct
+       'person',
+       person_id,
+       'Waiting'
+from   refresh_person;
+
+drop table refresh_person
 
 """
